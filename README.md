@@ -39,15 +39,15 @@ MindPool/
 - SQLite-backed Compute Points (CP) balance and transaction records.
 - Initial pool-job endpoints and matchmaking/relay scaffolding.
 
-### Planned, not yet included
+### Planned or incomplete
 
-The master plan describes additional work such as model catalogue and hardware checks, an opt-in compute/farm mode with thermal safeguards, a complete worker lifecycle, dynamic CP pricing, richer chat settings, and automated Android APK builds with GitHub Actions. These features should not be assumed to be implemented in the current snapshot.
+The master plan remains a roadmap. The local model catalogue, Android hardware-sensor integration, full worker inference loop, dynamic CP pricing, and account/device screens are not yet complete. The current farm controller is a safety-checked foundation and is not yet connected to the main app screen.
 
 ## Requirements
 
 - Python 3.10 or newer is recommended.
 - A working internet connection is needed to download the llama.cpp Android ARM64 binary and model files.
-- Android deployment/building has not yet been configured in this repository.
+- Android APK builds are configured through GitHub Actions; a successful build does not by itself prove that on-device inference or networking works.
 
 ## Run the backend locally
 
@@ -87,7 +87,7 @@ cd mobile_app
 python main.py
 ```
 
-The local model runner expects a GGUF model file. Select/provide a valid model path in the app before starting inference. The runner downloads an Android ARM64 `llama-server` release binary to `~/.mindpool/llama-server` when needed; this target is intended for Android ARM64 and may not run on a desktop Linux machine.
+The local model runner expects a GGUF model file under `~/.mindpool/models`. The app currently has no in-app model-import screen, so a model must be placed there manually. On Android, the runner can attempt to download the configured Android ARM64 `llama-server` binary. On desktop Linux and other systems it will not mistakenly download that Android executable; provide a compatible executable with `MINDPOOL_LLAMA_SERVER` or a trusted download URL with `MINDPOOL_LLAMA_SERVER_URL`. Android runtime execution still needs device testing.
 
 ## Database
 
@@ -111,7 +111,7 @@ Contributions, bug reports, and implementation feedback are welcome.
 
 ## License
 
-No license file is included in this repository snapshot yet. Until a license is added, all rights remain with the copyright holder; do not assume the project is MIT-licensed solely because the master plan mentions MIT.
+This project is distributed under the MIT License; see [`LICENSE`](LICENSE).
 
 
 ## Additional modules
