@@ -51,7 +51,7 @@ class HardwareGuard:
         )
         for model_path in model_paths:
             try:
-                model = model_path.read_bytes().replace(b"\\x00", b"").decode(
+                model = model_path.read_bytes().replace(b"\x00", b"").decode(
                     "utf-8", errors="ignore"
                 )
                 if "raspberry pi" in model.lower():
