@@ -28,6 +28,11 @@ class FarmController:
             return GuardResult(False, ["Explicit user confirmation is required."])
         if self.status.running:
             return GuardResult(False, ["Farm mode is already running."])
+        if not self.guard.platform_supported():
+            return GuardResult(
+                False,
+                ["MindPool compute mode is supported on Android and 64-bit Raspberry Pi OS."],
+            )
         result = self.guard.check(battery_percent, temperature_c, is_charging, is_wifi, turbo=(mode == FarmMode.TURBO))
         if result.allowed:
             self.status = FarmStatus(True, mode, f"Farm mode active ({mode.value}).")
