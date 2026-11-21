@@ -46,15 +46,34 @@ class LlamaRunner:
         self._base_url = f"http://{self.config.host}:{self.config.port}"
 
     async def ensure_binary(self) -> bool:
-        if self.config.binary_path.exists() and os.access(self.config.binary_path, os.X_OK):
+        configured_path = os.getenv("MINDPOOL_LLAMA_SERVER")
+        if configured_path:
+            self.config.binary_path = Path(configured_path).expanduser()
+
+        if self.config.binary_path.is_file() and os.access(self.config.binary_path, os.X_OK):
             return True
 
         self.config.binary_path.parent.mkdir(parents=True, exist_ok=True)
 
+        # Never install an Android executable on desktop Linux/macOS/Windows.
+        download_url = os.getenv("MINDPOOL_LLAMA_SERVER_URL")
+        is_android = hasattr(sys, "getandroidapilevel")
+        if not download_url and is_android:
+            download_url = (
+                "https://github.com/ggml-org/llama.cpp/releases/download/b4721/"
+                "llama-server-android-arm64"
+            )
+        if not download_url:
+            print(
+                "No compatible llama-server binary found. Install one for this OS "
+                "or set MINDPOOL_LLAMA_SERVER / MINDPOOL_LLAMA_SERVER_URL.",
+                file=sys.stderr,
+            )
+            return False
+
         try:
-            url = "https://github.com/ggml-org/llama.cpp/releases/download/b4721/llama-server-android-arm64"
-            async with httpx.AsyncClient(timeout=120.0) as client:
-                resp = await client.get(url, follow_redirects=True)
+            async with httpx.AsyncClient(timeout=120.0, follow_redirects=True) as client:
+                resp = await client.get(download_url)
                 resp.raise_for_status()
                 self.config.binary_path.write_bytes(resp.content)
                 self.config.binary_path.chmod(0o755)
@@ -93,14 +112,15 @@ class LlamaRunner:
         try:
             self._process = subprocess.Popen(
                 cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                # Avoid blocking the inference process if its output buffer fills.
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
                 start_new_session=True,
             )
             await asyncio.sleep(2)
             if self._process.poll() is not None:
-                stderr = self._process.stderr.read().decode() if self._process.stderr else ""
-                print(f"llama-server failed to start: {stderr}", file=sys.stderr)
+                print("llama-server exited during startup.", file=sys.stderr)
+                self._process = None
                 return False
 
             # Verify server is actually responding
