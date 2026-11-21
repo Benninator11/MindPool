@@ -135,3 +135,15 @@ The first workflow run is the real compatibility check: Flet's Android build may
 ## Important implementation limits
 
 These additions are foundations, not a finished distributed compute marketplace. The farm controller is not yet wired into the main Flet screen, and a complete worker loop/job execution protocol still needs implementation. The broker currently has prototype-level authentication and job routing; do not expose it publicly or use it for real accounts or sensitive prompts. Hardware sensor acquisition is platform-specific and must be connected to verified Android APIs before worker mode can be enabled in a release.
+
+
+### Supported compute platforms
+
+MindPool's compute/farm platform check permits Android and 64-bit Raspberry Pi OS
+(aarch64/arm64). Raspberry Pi devices are detected through the Linux device-tree
+model string. Other desktop Linux distributions and non-ARM64 systems are not
+enabled for farm mode by this check.
+
+On Raspberry Pi, install a native Linux ARM64 `llama-server` build and set
+`MINDPOOL_LLAMA_SERVER` to its executable path before starting local inference.
+The Android `llama-server` binary is not compatible with Raspberry Pi OS.
