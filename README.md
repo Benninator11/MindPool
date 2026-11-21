@@ -112,3 +112,26 @@ Contributions, bug reports, and implementation feedback are welcome.
 ## License
 
 No license file is included in this repository snapshot yet. Until a license is added, all rights remain with the copyright holder; do not assume the project is MIT-licensed solely because the master plan mentions MIT.
+
+
+## Additional modules
+
+The repository also includes the following early foundations:
+
+- `mobile_app/engine/model_manager.py`: local GGUF inventory, configurable model-count limit, explicit HTTPS download and removal. The catalogue entries intentionally have no download URLs until the exact model files and their licenses are verified.
+- `mobile_app/engine/hardware_guard.py`: conservative checks for battery, temperature, charging and Wi-Fi. Missing sensor readings block worker start.
+- `mobile_app/network/broker_client.py`: authenticated WebSocket client for the broker.
+- `mobile_app/ui/farm_view.py`: explicit opt-in farm-session controller with Eco/Balanced/Turbo modes and safety checks.
+- `mobile_app/ui/wallet_view.py`: Compute Points display data helpers.
+- `.github/workflows/build_apk.yml`: GitHub Actions workflow that attempts an Android APK build on relevant pushes and manual dispatch.
+- `LICENSE`: MIT License.
+
+## Build the Android APK
+
+Open the repository's **Actions** tab and select **Build MindPool Android APK**, then choose **Run workflow**. A successful build publishes a temporary downloadable artifact named `MindPool-Android-APK`. Pushes affecting `mobile_app/**` also trigger the workflow.
+
+The first workflow run is the real compatibility check: Flet's Android build may require adjustments to SDK/build dependencies or project configuration. A workflow file being present does not mean an APK has already built successfully.
+
+## Important implementation limits
+
+These additions are foundations, not a finished distributed compute marketplace. The farm controller is not yet wired into the main Flet screen, and a complete worker loop/job execution protocol still needs implementation. The broker currently has prototype-level authentication and job routing; do not expose it publicly or use it for real accounts or sensitive prompts. Hardware sensor acquisition is platform-specific and must be connected to verified Android APIs before worker mode can be enabled in a release.
