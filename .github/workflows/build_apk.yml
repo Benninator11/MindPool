@@ -35,6 +35,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install "flet[all]>=1.1.2"
 
+      - name: Validate Python modules
+        run: |
+          python -m pip install -r backend/requirements.txt -r mobile_app/requirements.txt
+          python -m compileall -q backend mobile_app
+          python -c "from backend.main import app; print('Backend import OK')"
+          cd mobile_app
+          python -c "import main; from engine.llama_runner import LlamaRunner; from ui.farm_view import FarmController; print('Mobile modules import OK')"
+
       - name: Build Android APK
         working-directory: mobile_app
         run: flet build apk --verbose
