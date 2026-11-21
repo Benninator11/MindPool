@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local databases and runtime data
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+mindpool.db
+data/
+
+# Local model files and downloaded binaries
+*.gguf
+llama-server
+.models/
+models/
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Build output
+build/
+dist/
+*.apk
+*.aab
