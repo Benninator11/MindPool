@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "mobile_app/**"
+      - "backend/**"
       - ".github/workflows/build_apk.yml"
   workflow_dispatch:
 
