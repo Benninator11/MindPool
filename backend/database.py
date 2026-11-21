@@ -269,22 +269,25 @@ class Database:
         if amount <= 0:
             raise ValueError("CP spending amount must be a positive integer.")
         async with self.get_db() as db:
-            row = await db.execute("SELECT cp_balance FROM users WHERE id = ?", (user_id,))
-            user_row = await row.fetchone()
-            if not user_row or user_row["cp_balance"] < amount:
+            # The conditional update makes balance checking and spending atomic.
+            cursor = await db.execute(
+                "UPDATE users SET cp_balance = cp_balance - ? "
+                "WHERE id = ? AND cp_balance >= ?",
+                (amount, user_id, amount),
+            )
+            if cursor.rowcount == 0:
+                row = await db.execute("SELECT cp_balance FROM users WHERE id = ?", (user_id,))
+                user_row = await row.fetchone()
                 return False, user_row["cp_balance"] if user_row else 0
 
-            await db.execute(
-                "UPDATE users SET cp_balance = cp_balance - ? WHERE id = ?",
-                (amount, user_id),
-            )
             await db.execute(
                 "INSERT INTO cp_transactions (user_id, amount, reason) VALUES (?, ?, ?)",
                 (user_id, -amount, reason),
             )
             await db.commit()
-            new_balance = user_row["cp_balance"] - amount
-            return True, new_balance
+            row = await db.execute("SELECT cp_balance FROM users WHERE id = ?", (user_id,))
+            user_row = await row.fetchone()
+            return True, user_row["cp_balance"]
 
     async def get_cp_transactions(self, user_id: int, limit: int = 50) -> list[CPTransaction]:
         async with self.get_db() as db:
