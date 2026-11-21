@@ -1,7 +1,10 @@
 """UI-independent controls for a user-started worker session; no hidden background work."""
 from dataclasses import dataclass
 from enum import Enum
-from engine.hardware_guard import HardwareGuard, GuardResult
+try:
+    from ..engine.hardware_guard import HardwareGuard, GuardResult
+except ImportError:  # Running the Flet app from the mobile_app directory.
+    from engine.hardware_guard import HardwareGuard, GuardResult
 
 class FarmMode(str, Enum):
     ECO = "eco"
