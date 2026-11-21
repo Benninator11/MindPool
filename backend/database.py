@@ -203,10 +203,28 @@ class Database:
             )
 
     async def register_device(self, user_id: int, device_fingerprint: str, name: str) -> bool:
+        if not device_fingerprint or len(device_fingerprint) > 256:
+            return False
+        if not name or len(name) > 100:
+            return False
+
         async with self.get_db() as db:
-            # Check device limit
+            existing = await db.execute(
+                "SELECT id FROM devices WHERE user_id = ? AND device_fingerprint = ?",
+                (user_id, device_fingerprint),
+            )
+            existing_row = await existing.fetchone()
+            if existing_row:
+                await db.execute(
+                    "UPDATE devices SET name = ?, is_active = 1, last_seen = CURRENT_TIMESTAMP "
+                    "WHERE user_id = ? AND device_fingerprint = ?",
+                    (name, user_id, device_fingerprint),
+                )
+                await db.commit()
+                return True
+
             row = await db.execute(
-                "SELECT COUNT(*) as count FROM devices WHERE user_id = ? AND is_active = 1",
+                "SELECT COUNT(*) AS count FROM devices WHERE user_id = ? AND is_active = 1",
                 (user_id,),
             )
             count_row = await row.fetchone()
@@ -214,20 +232,15 @@ class Database:
                 "SELECT max_devices FROM users WHERE id = ?", (user_id,)
             )
             user_data = await user_row.fetchone()
-            max_devices = user_data["max_devices"] if user_data else 3
-
-            if count_row["count"] >= max_devices:
+            if not user_data or count_row["count"] >= user_data["max_devices"]:
                 return False
 
-            try:
-                await db.execute(
-                    "INSERT INTO devices (user_id, device_fingerprint, name) VALUES (?, ?, ?)",
-                    (user_id, device_fingerprint, name),
-                )
-                await db.commit()
-                return True
-            except Exception:
-                return False
+            await db.execute(
+                "INSERT INTO devices (user_id, device_fingerprint, name) VALUES (?, ?, ?)",
+                (user_id, device_fingerprint, name),
+            )
+            await db.commit()
+            return True
 
     async def update_device_last_seen(self, user_id: int, device_fingerprint: str):
         async with self.get_db() as db:
@@ -253,6 +266,8 @@ class Database:
             return user_row["cp_balance"]
 
     async def spend_cp(self, user_id: int, amount: int, reason: str) -> tuple[bool, int]:
+        if amount <= 0:
+            raise ValueError("CP spending amount must be a positive integer.")
         async with self.get_db() as db:
             row = await db.execute("SELECT cp_balance FROM users WHERE id = ?", (user_id,))
             user_row = await row.fetchone()
