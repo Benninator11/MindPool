@@ -65,7 +65,7 @@ class ChatMessage(BaseModel):
 
 class ChatCompletionRequest(BaseModel):
     model: str
-    messages: List[ChatMessage]
+    messages: List[ChatMessage] = Field(..., min_length=1)
     temperature: float = 0.7
     top_p: float = 0.95
     top_k: int = 40
@@ -107,7 +107,10 @@ async def get_current_user(
     if not payload:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
-    user_id = int(payload.get("sub", 0))
+    try:
+        user_id = int(payload.get("sub", 0))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token subject")
     user = await db.get_user(user_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
@@ -197,7 +200,7 @@ app = FastAPI(title="MindPool Broker", version="1.0.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -298,11 +301,13 @@ async def chat_completions(
 
     worker_id = await manager.match_job_to_worker(job_id)
     if not worker_id:
-        await db.spend_cp(user.id, -estimated_cost, f"Refund: {request.model} (no workers)")
+        refunded_balance = await db.add_cp(
+            user.id, estimated_cost, f"Refund: {request.model} (no workers)"
+        )
         raise HTTPException(
             status_code=503,
             detail="ERR_MODEL_CAPACITY_EXHAUSTED",
-            headers={"X-CP-Balance": str(new_balance + estimated_cost)},
+            headers={"X-CP-Balance": str(refunded_balance)},
         )
 
     return PoolJobResponse(job_id=job_id, status="assigned")
@@ -356,8 +361,8 @@ async def websocket_endpoint(websocket: WebSocket, token: str):
                     job = await db.get_job(job_id)
                     if job and job.get("assigned_worker_id") == user_id:
                         await db.complete_job(job_id, result)
-                        await manager.send_personal_message(
-                            job["requester_id"], "all", {"type": "job_completed", "job_id": job_id, "result": result}
+                        await manager.broadcast_to_user(
+                            job["requester_id"], {"type": "job_completed", "job_id": job_id, "result": result}
                         )
                         estimated_reward = max(1, len(result) // 50)
                         await db.add_cp(user_id, estimated_reward, f"Farm reward: job {job_id}")
