@@ -360,12 +360,14 @@ async def websocket_endpoint(websocket: WebSocket, token: str):
                 if job_id and result:
                     job = await db.get_job(job_id)
                     if job and job.get("assigned_worker_id") == user_id:
-                        await db.complete_job(job_id, result)
-                        await manager.broadcast_to_user(
-                            job["requester_id"], {"type": "job_completed", "job_id": job_id, "result": result}
-                        )
-                        estimated_reward = max(1, len(result) // 50)
-                        await db.add_cp(user_id, estimated_reward, f"Farm reward: job {job_id}")
+                        completed = await db.complete_job(job_id, result)
+                        if completed:
+                            await manager.broadcast_to_user(
+                                job["requester_id"],
+                                {"type": "job_completed", "job_id": job_id, "result": result},
+                            )
+                            estimated_reward = max(1, len(result) // 50)
+                            await db.add_cp(user_id, estimated_reward, f"Farm reward: job {job_id}")
 
             elif msg_type == "subscribe_job":
                 job_id = data.get("job_id")
