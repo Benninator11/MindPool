@@ -180,6 +180,9 @@ class ConnectionManager:
                         assigned = await db.assign_job(job_id, worker_id)
                         if assigned:
                             await self.worker_queues[worker_id].put(job)
+                            await self.broadcast_to_user(
+                                worker_id, {"type": "job_available", "job": job}
+                            )
                             return worker_id
         return None
 
