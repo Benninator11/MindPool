@@ -1,0 +1,91 @@
+# MASTERPLAN 3.0: MINDPOOL – 100 % PYTHON ANDROID-APP + AUTO-APK VIA GITHUB ACTIONS
+
+**Projekt:** MindPool  
+**Repository:** `Benninator11/MindPool`  
+**Lizenz:** MIT  
+**Entwicklungsumgebung:** Ausschließlich VS Code mit Python (KEIN Android Studio, KEIN C++, KEIN NDK/CMake auf dem Entwickler-PC!).
+
+---
+
+## TEIL 1: DER ARCHITEKTUR-TRICK (EINFACH, STABIL & SCHNELL)
+
+Wir bauen die komplette Android-App in **100 % Python** mit dem Framework **Flet** (für moderne Dark-Mode-UI mit Animationen) und **FastAPI/Node.js** für den schlanken Vermittlungs-Broker:
+
+1. **Fertiger KI-Motor statt C++-Kompilieren:**
+   * Die App kompiliert `llama.cpp` **nicht** selbst.
+   * Stattdessen lädt die App (oder der Build-Prozess) die offiziell vorkompilierte Android-ARM64-Binary **`llama-server`** (aus den offiziellen `ggml-org/llama.cpp` GitHub-Releases) herunter.
+   * Im Betrieb startet Python `llama-server` als lokalen Hintergrundprozess (`http://127.0.0.1:8080`) und kommuniziert mit ihm über standardisierte OpenAI-kompatible HTTP/SSE-Requests (`/v1/chat/completions`).
+2. **Automatischer `.apk`-Build ohne Android Studio:**
+   * Wir legen im Repository eine **GitHub-Actions-Pipeline** (`.github/workflows/build_apk.yml`) an.
+   * Sobald Code auf GitHub gepusht wird, baut GitHub in der Cloud automatisch die fertige **`MindPool.apk`** (via `flet build apk`), sodass der Entwickler die fertige `.apk` direkt auf sein **Poco X7 Pro** herunterladen und installieren kann.
+3. **100 % P2P & Werbefrei:**
+   * Keine KI-Inferenz auf dem Server (der Broker vermittelt nur per WebSocket/HTTP).
+   * Keine Werbung, keine In-App-Käufe, keine E-Mail-Registrierung (nur `username` + `password` + einmaliger `Recovery-Key`), keine übertragbaren Tokens (`non-transferable CP`).
+
+---
+
+## TEIL 2: VEREINFACHTE PROJEKTSTRUKTUR
+
+```text
+MindPool/
+├── LICENSE                         # MIT-Lizenz
+├── README.md                       # Anleitung für Python-Start & APK-Download
+├── .github/workflows/
+│   └── build_apk.yml               # Baut automatisch die fertige Android-APK in der Cloud
+├── backend/                        # Schlanker Vermittlungs-Broker (Python FastAPI + WebSockets)
+│   ├── main.py                     # Auth, Matchmaking, Relay, CP-Ledger & Dynamische Preise
+│   ├── database.py                 # SQLite / PostgreSQL (Argon2id-Hashes, Recovery-Key, Wallet)
+│   └── requirements.txt
+└── mobile_app/                     # 100 % Python Android-App (Flet)
+    ├── main.py                     # Einstiegspunkt & Navigation (Chat, Farm, Modelle, Wallet, UI)
+    ├── engine/
+    │   ├── llama_runner.py         # Startet/stoppt fertigen llama-server & streamt HTTP-Antworten
+    │   ├── model_manager.py        # Max. 3-5 GGUF-Modelle verwalten, Download & Hardware-Check
+    │   └── hardware_guard.py       # Prüft ARM64, Akku, WLAN, Temperatur & blockiert Emulatoren
+    ├── network/
+    │   └── broker_client.py        # WebSocket-Verbindung zum Broker + lokaler Self-Fallback
+    ├── ui/
+    │   ├── theme_engine.py         # OLED-Dark-Mode (#000000, #89A8D8 -> #7B52C7) + KI-Theme-JSON
+    │   ├── chat_view.py            # Profi-Chat (freier System-Prompt, Temperature, Top-P, Max-Tokens)
+    │   ├── farm_view.py            # Freiwilliger Farm-Modus (Eco/Balanced/Turbo, 5s-Stopp-Countdown)
+    │   └── wallet_view.py          # CP-Kontostand, Modell-Token-Umrechner & Transaktionsverlauf
+    └── requirements.txt
+```
+
+---
+
+## TEIL 3: ALLE KERNFUNKTIONEN (VERBINDLICH)
+
+1. **Konten & Sicherheit:**
+   * Login mit `username` + `password` (Argon2id-Hash) + einmaligem Recovery-Key.
+   * Schutz gegen Desktop-GPUs & Emulatoren (Waydroid/x86-Check in `hardware_guard.py`); max. konfigurierbare Geräteanzahl pro Konto.
+   * Keine Chat-Verläufe auf dem Server; lokale Historie bleibt auf dem Smartphone.
+2. **Modell-Katalog & Speicherlimit:**
+   * Maximal **3 bis 5 GGUF-Modelle** gleichzeitig lokal speicherbar (Standard: 3).
+   * Kandidaten-Modelle (mit Lizenz-Hinweis & RAM-Check): z. B. `Qwen 3 / 3.5 (0.6B, 0.8B, 1.7B, 4B, 8B)`, `Gemma 3 / 4 (1B, 4B)`, `Llama 3.2 (1B, 3B)`, `Phi-4-mini (3.8B)`, `DeepSeek-R1-Distill (1.5B, 7B)`, `Ministral 3 (3B, 8B)`.
+3. **Freiwilliger Farm-Modus & Thermoschutz:**
+   * Läuft nur nach ausdrücklichem Start durch den Nutzer (sichtbare Statusanzeige, kein verstecktes Hintergrund-Mining).
+   * Leistungsstufen: **Eco** (wenig Threads), **Balanced**, **Turbo** (nur am Ladekabel).
+   * Prüft Akku, WLAN-Option und Temperatur; pausiert automatisch bei Überhitzung und beendet laufende Jobs beim Stoppen über einen sauberen **5-Sekunden-Graceful-Shutdown**.
+4. **Profi-Chat & Ehrliche Kapazitätsanzeige:**
+   * Frei editierbarer **System-Prompt** + Presets, `Temperature`, `Top-P`, `Top-K`, `Max Tokens`, `Thinking-Modus` und Streaming.
+   * Jede Antwort zeigt klar, welches Modell geantwortet hat (lokal oder über Pool-Host).
+   * Bei Überlastung: Warteschlange oder ehrliche Meldung `ERR_MODEL_CAPACITY_EXHAUSTED` mit 1-Klick-Vorschlag auf verfügbare kleinere Modelle oder lokalen Self-Fallback.
+5. **Compute Points (CP) & Adaptive UI:**
+   * Nicht übertragbare CP (`non-transferable`), gutgeschrieben nur für tatsächlich abgeschlossene und verifizierte Arbeit (keine Vergütung für bloßes Online-Sein oder künstliche Schein-Chats).
+   * Zwei-Modi-Anzeige (CP-Punkte vs. verfügbares Token-Budget für das gewählte Modell) + dynamische Preisanpassung bei Überangebot/Nachfrage.
+   * **Adaptive UI:** KI generiert sichere dekorative **Theme-JSONs** und Animationen (für `20–500 CP`) mit automatischer Kontrastprüfung und Vorschau.
+
+---
+
+## TEIL 4: SCHRITT-FÜR-SCHRITT-ARBEITSWEISE (FÜR AI-TEAM / NEMOTRON 3 ULTRA)
+
+Arbeite strikt schrittweise. Schreibe vor jedem Schritt kurz, welche Dateien erstellt werden, und teste jeden Schritt mit Python:
+
+* **Schritt 1 (Lokaler Python-Prototyp & KI-Motor):** Erstelle `mobile_app/engine/llama_runner.py` und `mobile_app/main.py` (Flet-UI im OLED-Look `#000000` mit `#89A8D8` -> `#7B52C7`), sodass die App sowohl auf dem Linux-PC als auch auf Android über `llama-server` lokal chatten kann.
+* **Schritt 2 (Python-Broker-Server):** Erstelle `backend/main.py` und `backend/database.py` (FastAPI + WebSockets) für Auth (Username + Recovery-Key), Präsenz, Matchmaking, Relay und CP-Ledger.
+* **Schritt 3 (Farm-Modus, Hardware-Guard & Netzwerk):** Verbinde `mobile_app` per WebSocket mit dem Broker; implementiere `farm_view.py` (Eco/Balanced/Turbo, Thermoschutz, 5s-Stopp) und `wallet_view.py`.
+* **Schritt 4 (Profi-Chat & Adaptive UI):** Ergänze alle Sampling-Parameter, System-Prompt-Presets, `ERR_MODEL_CAPACITY_EXHAUSTED`-Dialoge und den sicheren JSON-Theme-Generator.
+* **Schritt 5 (GitHub-Actions APK-Pipeline):** Erstelle `.github/workflows/build_apk.yml`, damit GitHub bei jedem Push automatisch die fertige Android-`.apk` baut und als Download-Artifact / Release bereitstellt.
+
+**Starte jetzt sofort mit Schritt 1 und zeige mir den Dateibaum sowie den Code für `mobile_app/requirements.txt`, `mobile_app/engine/llama_runner.py` und `mobile_app/main.py`.**
