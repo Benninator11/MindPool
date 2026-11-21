@@ -388,7 +388,8 @@ class Database:
     async def complete_job(self, job_id: int, result: str) -> bool:
         async with self.get_db() as db:
             cursor = await db.execute(
-                "UPDATE pool_jobs SET status = 'completed', result = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ?",
+                "UPDATE pool_jobs SET status = 'completed', result = ?, completed_at = CURRENT_TIMESTAMP "
+                "WHERE id = ? AND status = 'assigned'",
                 (result, job_id)
             )
             await db.commit()
