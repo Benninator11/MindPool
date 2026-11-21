@@ -1,6 +1,8 @@
 """Conservative checks for optional local compute work; unknown readings fail closed."""
 from dataclasses import dataclass
 import platform
+from pathlib import Path
+import sys
 
 @dataclass
 class GuardConfig:
@@ -36,5 +38,30 @@ class HardwareGuard:
         return GuardResult(not reasons, reasons)
 
     @staticmethod
+    def is_raspberry_pi() -> bool:
+        """Return True only for Raspberry Pi devices running 64-bit Linux."""
+        if platform.system().lower() != "linux":
+            return False
+        if platform.machine().lower() not in {"aarch64", "arm64"}:
+            return False
+
+        model_paths = (
+            Path("/proc/device-tree/model"),
+            Path("/sys/firmware/devicetree/base/model"),
+        )
+        for model_path in model_paths:
+            try:
+                model = model_path.read_bytes().replace(b"\\x00", b"").decode(
+                    "utf-8", errors="ignore"
+                )
+                if "raspberry pi" in model.lower():
+                    return True
+            except OSError:
+                continue
+        return False
+
+    @staticmethod
     def platform_supported() -> bool:
-        return platform.system().lower() == "linux" and platform.machine().lower() in {"aarch64", "arm64"}
+        """MindPool supports Android and 64-bit Raspberry Pi OS."""
+        is_android = hasattr(sys, "getandroidapilevel")
+        return is_android or HardwareGuard.is_raspberry_pi()
